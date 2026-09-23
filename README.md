@@ -91,6 +91,9 @@ calls. Validate their structure with:
 .venv/bin/sentinel corpus-lint evals/codex_redteam
 ```
 
+[Archived fixture outputs](evals/codex_redteam/results/README.md) are labeled by
+their historical corpus/scorer revisions; they are not current-preview benchmarks.
+
 These are development diagnostics, not a held-out benchmark. Report benign
 warnings/blocks, incomplete assessments and harness abstention separately. Replay
 classification is not verified causal prevention. Broader held-out and matched
