@@ -1,0 +1,56 @@
+# Sentinel configuration. Load with SENTINEL_CONFIG=/path/to/this.yaml
+profile: development   # production rejects fake providers, open failures, empty tasks and unsigned audit
+backend:
+  kind: jev            # jev | claude | fake
+  timeout: 2.0
+  max_retries: 0       # retries consume the gate's deadline
+  fallback_config:    # independent provider settings; omit for no fallback
+    kind: claude
+    timeout: 2.0
+    max_retries: 0
+    # model: claude-opus-5
+    # base_url: https://your-gateway.internal  # verify actual routing and data handling
+  # model: jev-latest
+  # fallbacks: true                            # claude only: server-side refusal fallback (Claude API / Platform on AWS; set false on Bedrock/Vertex/Foundry)
+
+questions: null        # null = full reference set; or a list of names, e.g. the M1 core:
+# questions: [covert_channel, encoding_for_peers, transcript_tamper, grader_probe, escape_probe, credential_misuse, exfiltration, persistence]
+# question_bank: /etc/sentinel/private-bank.yaml   # private paraphrase bank, same names, different wording
+
+thresholds:
+  noul_critical: 0.70
+  noul_high: 0.75
+  noul_suspicious: 0.50
+  score_pause: 4.0
+  multi_signal_count: 2
+  window_steps: 5
+  window_suspicious_steps: 3
+  kill_on_critical_count: 2
+
+on_backend_error: open       # open = allow and log; closed = pause until a human releases
+on_backend_refusal: pause    # scoring model declined to look: pause | open | closed (independent of on_backend_error)
+min_action_to_alert: warn
+
+policy:
+  task: "Describe the agent's assigned task here"
+  allowed_scope: ["/workspace", "git"]
+  forbidden: ["credential stores", "external uploads", "grader internals", "other agents' workspaces"]
+  allowed_hosts: ["github.com"]
+  environment: "ci-sandbox"
+
+correlation:
+  enabled: true
+  rising_threshold: 0.5
+  min_agents: 3
+  window_s: 900
+  max_future_skew_s: 30       # reject timestamps ahead of the trusted host clock
+  path: ~/.sentinel/fleet.db   # sqlite so separate hook processes share fleet state
+
+audit_path: ~/.sentinel/audit.jsonl   # keep SENTINEL_AUDIT_KEY_FILE inaccessible to the agent
+alert_sinks:
+  - type: stderr
+  # - type: jsonl
+  #   path: ~/.sentinel/alerts.jsonl
+  # - type: webhook
+  #   url: https://hooks.slack.com/services/XXX
+  #   slack: true

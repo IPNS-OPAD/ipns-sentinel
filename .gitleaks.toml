@@ -1,0 +1,14 @@
+# Keep all upstream detectors. Only these two exact, public audit test fixtures
+# are exempt; no real provider value or entire test directory is allowlisted.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Inert audit-signing fixtures (not API credentials)"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(^|/)tests/test_(credentials|docker_execution)\.py$''']
+regexes = ['''^(test-key-material-of-at-least-32-bytes|crash-test-key-material-at-least-32-bytes)$''']

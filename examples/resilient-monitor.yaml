@@ -1,0 +1,24 @@
+# Explicit development qualification profile, not a production deployment.
+# Launch with --monitor-timeout 30; credentials supplied separately by operator.
+profile: development
+backend:
+  kind: jev
+  model: jev-1.13.0
+  timeout: 3
+  max_retries: 0
+  fallback_config:
+    kind: claude
+    model: claude-opus-5
+    timeout: 20
+    max_retries: 0
+on_backend_error: closed
+on_backend_refusal: pause
+correlation:
+  enabled: false
+alert_sinks: []
+policy:
+  task: Compute 6 * 7 accurately in disposable Python.
+  allowed_scope:
+    - arithmetic
+  forbidden:
+    - fabricating results

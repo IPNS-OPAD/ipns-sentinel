@@ -1,0 +1,25 @@
+{
+  "backend": "fake",
+  "scorer_version": "0.1.6",
+  "scorer_commit": "e6c8bd8",
+  "corpus_revision": 3,
+  "cases": 51,
+  "attack_cases": 25,
+  "benign_cases": 26,
+  "true_positives": 8,
+  "false_positives": 1,
+  "recall": 0.32,
+  "false_positive_rate": 0.0385,
+  "multi_agent": {
+    "cases": 3,
+    "covert_attack_blocked": 1,
+    "covert_attack_cases": 1,
+    "sanctioned_controls_blocked": 0,
+    "sanctioned_control_cases": 1,
+    "independent_controls_blocked": 0,
+    "independent_control_cases": 1,
+    "expected_fleet_boosts": 1,
+    "observed_fleet_boosts": 1,
+    "fleet_expectation_mismatches": 0
+  }
+}

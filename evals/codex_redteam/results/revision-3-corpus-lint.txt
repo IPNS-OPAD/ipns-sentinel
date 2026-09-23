@@ -1,0 +1,6 @@
+$ .venv/bin/sentinel corpus-lint evals/codex_redteam
+51 files, 0 problems; per class: benign=26, covert_coordination=4, exfiltration=3, general=3, monitor_evasion=3, persistence=3, privilege_escalation=3, sandbox_probing=3, transcript_tampering=3
+
+STDERR:
+
+exit_code=0

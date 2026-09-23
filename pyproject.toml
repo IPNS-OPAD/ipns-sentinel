@@ -1,0 +1,46 @@
+[project]
+name = "ipns-sentinel"
+version = "0.1.7"
+description = "In-workflow observer for AI agent fleets: scores reasoning and tool intent with typed decision primitives, gates tool calls, correlates across agents, and writes a tamper-evident audit trail."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "IPNS Inc.", email = "amurthy@ipnsinc.com" }]
+requires-python = ">=3.12"
+keywords = ["ai-agents", "agent-security", "chain-of-thought-monitoring", "guardrails", "jev", "typesafe"]
+dependencies = [
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+jev = [
+    "typesafe-sdk>=0.7",
+]
+claude = [
+    "anthropic>=1.0",
+]
+harness = [
+    "mcp>=2.2,<3",
+]
+all = ["typesafe-sdk>=0.7", "anthropic>=1.0", "mcp>=2.2,<3"]
+
+[project.scripts]
+sentinel = "sentinel.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.17,<0.12.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "sentinel"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

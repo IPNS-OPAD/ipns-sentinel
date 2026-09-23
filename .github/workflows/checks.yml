@@ -1,0 +1,52 @@
+name: Preview checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install locked test dependencies
+        run: |
+          python -m pip install uv==0.11.17
+          uv sync --frozen --all-extras
+      - name: Install checksum-pinned scanner
+        run: |
+          curl --fail --silent --show-error --location --output "$RUNNER_TEMP/gitleaks.tar.gz" https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          printf '%s  %s\n' '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb' "$RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+      - name: Redacted source and full-history checks
+        run: uv run python scripts/check_release.py --gitleaks "$RUNNER_TEMP/gitleaks"
+      - name: Offline and local-fixture regression (no provider keys)
+        env:
+          SENTINEL_TEST_GITLEAKS: ${{ runner.temp }}/gitleaks
+        run: uv run pytest -q --tb=short
+      - name: Type checks and corpus structure
+        run: |
+          uv run --with mypy --with types-PyYAML mypy src/sentinel --ignore-missing-imports
+          uv run sentinel corpus-lint evals/codex_redteam
+      - name: Wheel installation outside checkout
+        run: |
+          uv build
+          uv venv "$RUNNER_TEMP/sentinel-wheel"
+          uv pip install --python "$RUNNER_TEMP/sentinel-wheel/bin/python" dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/sentinel-wheel/bin/sentinel" demo --mode observe
+          "$RUNNER_TEMP/sentinel-wheel/bin/sentinel" demo --mode enforce
+          "$RUNNER_TEMP/sentinel-wheel/bin/sentinel" --help
+
+# No provider secrets, hosted inference, artifact uploads, package publishing or
+# write token. Docker integration is an explicit, separate maintainer check.
