@@ -38,6 +38,7 @@ jobs:
         run: |
           uv run --with mypy --with types-PyYAML mypy src/sentinel --ignore-missing-imports
           uv run sentinel corpus-lint evals/codex_redteam
+          uv run sentinel corpus-lint evals/pilot
       - name: Wheel installation outside checkout
         run: |
           uv build

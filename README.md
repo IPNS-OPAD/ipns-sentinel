@@ -78,6 +78,11 @@ not a Sentinel monitor backend.
 
 ## Test and contribute
 
+For a small hands-on evaluation, start with the [12-case developer pilot](evals/pilot/README.md):
+five attacks, seven benign controls, and an assessment-only runner for a tester-supplied
+self-hosted chat endpoint. Its offline baseline needs no keys; live scoring is explicit
+and never executes the synthetic tool proposals.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the locked environment, full regression
 suite, opt-in Docker tests and redacted release checks. CI needs no provider keys
 and makes no hosted model calls.
