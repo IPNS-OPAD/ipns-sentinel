@@ -29,6 +29,7 @@ from sentinel.backends.base import Backend, BackendError, BackendInvalidResponse
 from sentinel.backends.fake import FakeBackend
 from sentinel.config import SentinelConfig
 from sentinel.correlation import Correlator
+from sentinel.engine import Decision
 from sentinel.observer import SentinelObserver
 from sentinel.questions import select
 from sentinel.state import AgentStep, PolicyContext
@@ -68,7 +69,7 @@ def answer_schema(questions) -> dict[str, Any]:
         if q.kind == "noul":
             fields = {"probability_yes": probability}
         elif q.kind == "choice":
-            fields = {"label": {"type": "string", "enum": q.labels}, "confidence": probability}
+            fields = {"label": {"type": "string", "enum": list(q.labels)}, "confidence": probability}
         else:
             fields = {"score": {"type": "number", "minimum": 0, "maximum": len(q.levels) - 1},
                       "confidence": probability}
@@ -159,7 +160,7 @@ class SelfHostedBackend:
 
     def __init__(self, base_url: str, model: str, *, token: str | None = None,
                  allow_http: bool = False, timeout: float = 30, max_tokens: int = 4096,
-                 response_format: str = "json_schema"):
+                 response_format: str = "json_schema", thinking: str = "default"):
         self.url = urlsplit(base_url)
         if (self.url.scheme not in {"http", "https"} or not self.url.hostname
                 or self.url.username is not None or self.url.password is not None
@@ -172,12 +173,16 @@ class SelfHostedBackend:
             raise ValueError("explicit model and timeout in (0,120] required")
         if not 1 <= max_tokens <= 8192 or response_format not in {"json_schema", "json_object"}:
             raise ValueError("invalid generation configuration")
+        if thinking not in {"default", "disabled", "enabled"}:
+            raise ValueError("thinking must be default, disabled or enabled")
         if token is not None and (not token or any(ord(c) < 33 or ord(c) > 126 for c in token)):
             raise ValueError("invalid gateway token")
         # Validate the port now, before the first request.
         self.port = self.url.port
         self.model, self.token = model, token
         self.timeout, self.max_tokens, self.response_format = timeout, max_tokens, response_format
+        self.thinking = thinking
+        self.chat_template_kwargs = None if thinking == "default" else {"enable_thinking": thinking == "enabled"}
 
     def evaluate(self, state, questions) -> Verdicts:
         started = time.monotonic()
@@ -190,6 +195,8 @@ class SelfHostedBackend:
                    "response_format": {"type": self.response_format}}
         if self.response_format == "json_schema":
             request["response_format"]["json_schema"] = {"name": "sentinel_answers", "strict": True, "schema": schema}
+        if self.chat_template_kwargs is not None:
+            request["chat_template_kwargs"] = self.chat_template_kwargs.copy()
         headers = {"Content-Type": "application/json", "Accept": "application/json"}
         if self.token:
             headers["Authorization"] = "Bearer " + self.token
@@ -299,6 +306,27 @@ class MeasuredBackend:
         return await asyncio.to_thread(self.evaluate, state, questions)
 
 
+def decision_details(decision: Decision) -> dict[str, Any]:
+    """Export validated scores and engine triggers, never free-text evidence.
+
+    Keep an explicit field allowlist: a future Decision/Verdict field must not
+    silently expose prompts, reasoning, provider metadata, or audit material.
+    Null verdicts mean no valid model assessment, not a zero-risk score.
+    """
+    return {
+        "severity": decision.severity, "own_signal": decision.own_signal,
+        "fail_mode": decision.fail_mode,
+        "verdicts": None if decision.verdicts is None else {
+            name: {"kind": value.kind, "probability": value.probability,
+                   "label": value.label if value.kind == "choice" else None,
+                   "score": value.score if value.kind == "score" else None}
+            for name, value in decision.verdicts.items.items()},
+        "triggers": [{"name": t.name, "kind": t.kind, "severity": t.severity,
+                      "threat_class": t.threat_class, "value": t.value,
+                      "label": t.label, "source": t.source} for t in decision.triggers],
+    }
+
+
 def run_suite(cases, backend: Backend, output: Path, *, repeat: int = 1, timeout: float = 30) -> dict:
     output.mkdir(mode=0o700, parents=True, exist_ok=False)
     rows = []
@@ -328,6 +356,7 @@ def run_suite(cases, backend: Backend, output: Path, *, repeat: int = 1, timeout
                         "action": decision.action.label, "blocks": decision.blocks,
                         "assessment_status": decision.assessment_status, "fleet_boost": decision.fleet_boost,
                         "sources": sorted({t.source for t in decision.triggers}),
+                        **decision_details(decision),
                         "diagnostic": measured.diagnostic.copy(),
                         "latency_ms": decision.verdicts.latency_ms if decision.verdicts else None})
                 complete = all(e["assessment_status"] in {"complete", "not_requested"} for e in events)
@@ -368,7 +397,7 @@ def run_suite(cases, backend: Backend, output: Path, *, repeat: int = 1, timeout
     summary["completed_attack_recall"] = summary["detections"] / completed_attacks if completed_attacks else None
     summary["completed_benign_false_positive_rate"] = summary["false_positives"] / completed_benign if completed_benign else None
     summary["incomplete_case_runs"] = len(rows) - summary["completed_case_runs"]
-    report = {"format": 1, "backend": backend.name, "fixture_only": backend.name == "fake",
+    report = {"format": 2, "backend": backend.name, "fixture_only": backend.name == "fake",
               "model": getattr(backend, "model", None), "executed_tools": 0,
               "sentinel_version": version("ipns-sentinel"),
               "python_version": platform.python_version(), "platform": platform.system(),
@@ -382,6 +411,8 @@ def run_suite(cases, backend: Backend, output: Path, *, repeat: int = 1, timeout
         report["endpoint_sha256"] = hashlib.sha256(backend.url.geturl().encode()).hexdigest()
         report["generation"] = {"temperature": 0, "max_tokens": backend.max_tokens,
                                 "response_format": backend.response_format, "timeout": backend.timeout,
+                                "thinking": backend.thinking,
+                                "chat_template_kwargs": backend.chat_template_kwargs,
                                 "retries": 0, "fallback": None}
     fd = os.open(output / "report.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w") as stream:
@@ -403,6 +434,8 @@ def main(argv=None) -> int:
     parser.add_argument("--timeout", type=float, default=30)
     parser.add_argument("--max-tokens", type=int, default=4096)
     parser.add_argument("--response-format", choices=["json_schema", "json_object"], default="json_schema")
+    parser.add_argument("--thinking", choices=["default", "disabled", "enabled"], default="default",
+                        help="self-hosted request override via chat_template_kwargs; default leaves server behavior unchanged")
     parser.add_argument("--repeat", type=int, choices=range(1, 4), default=1)
     parser.add_argument("--case", help="one exact case name, for a small first smoke")
     parser.add_argument("--output-dir", type=Path, required=True, help="new private directory, never overwritten")
@@ -419,9 +452,11 @@ def main(argv=None) -> int:
                 raise ValueError("self-hosted requires --live, --base-url, --model and --token-file or --no-auth")
             backend = SelfHostedBackend(args.base_url, args.model,
                 token=load_token(args.token_file) if args.token_file else None, allow_http=args.allow_http,
-                timeout=args.timeout, max_tokens=args.max_tokens, response_format=args.response_format)
+                timeout=args.timeout, max_tokens=args.max_tokens, response_format=args.response_format,
+                thinking=args.thinking)
         else:
-            if args.live or args.base_url or args.model or args.token_file or args.no_auth or args.allow_http:
+            if (args.live or args.base_url or args.model or args.token_file or args.no_auth
+                    or args.allow_http or args.thinking != "default"):
                 raise ValueError("network options require --backend self-hosted")
             backend = FakeBackend()
         report = run_suite(cases, backend, args.output_dir, repeat=args.repeat, timeout=args.timeout)

@@ -98,6 +98,39 @@ enabled. Record that change. There is no silent format/model/provider fallback.
 For reasoning models, the server must return the final JSON in `message.content`;
 reasoning prose or truncated output is not treated as a valid answer.
 
+### Explicit thinking mode, without patching the runner
+
+On a deployment whose operator confirms support for the
+[vLLM-style request override](https://docs.vllm.ai/en/latest/features/reasoning_outputs/#request-level-override),
+add `--thinking disabled` to request
+`chat_template_kwargs: {"enable_thinking": false}`. `--thinking enabled` sends
+`true`. The default, `--thinking default`, omits this field entirely and leaves
+the server's behavior unchanged; **it does not mean thinking is disabled**.
+These options apply only to the self-hosted backend. They neither restart nor
+reconfigure the server and never silently switch modes after a failure.
+
+For example, add the following options to the approved two-request smoke command
+above if the operator has selected JSON-object mode and disabled thinking:
+
+```sh
+--response-format json_object --thinking disabled
+```
+
+The report records the requested thinking mode and exact `chat_template_kwargs`
+sent (null means omitted). This is request provenance, **not proof that the
+gateway/model honored it**, a speed guarantee, or a pinned model revision. Record
+the operator-confirmed model revision and serving version separately. No reasoning
+text is saved, even when thinking is requested. Stop and share sanitized diagnostics
+if the smoke fails; do not patch the runner or change shared infrastructure to
+make it pass without separate operator/maintainer approval.
+
+The runner also corrects the original choice-schema bug: `enum` now contains
+a [JSON array of label names](https://json-schema.org/understanding-json-schema/reference/enum),
+not the label-to-description object. An older `enum must be an array` failure
+does not establish that the server lacks JSON-schema support. The corrected
+schema still needs an approved compatibility smoke; no live verification is
+implied by this fix.
+
 ## 3. Run the suite, then repeat if the service has capacity
 
 Use the same command, omit `--case`, and choose a **new** output directory.
@@ -115,6 +148,35 @@ case/question/runner hashes, requested model ID, Python/OS, endpoint hash (not i
 configuration, per-event decisions, latency, and safe failure categories. Raw
 responses, credentials, prompts and private audit material are not included.
 Keep results under the ignored `.sentinel/` directory and inspect before sharing.
+
+### Report format 2: inspect the verdict behind a decision
+
+New reports have `"format": 2`. Existing summary fields and scoring rules are
+unchanged. Each event now adds:
+
+- `verdicts`: all validated per-question results, keyed by question name. Each
+  contains `kind`, `probability`, `label`, and `score`. For `noul`, probability
+  means P(yes); for `choice`/`score`, it means the model's confidence. Only a choice
+  has a label and only a score question has a score; other fields are null.
+- `triggers`: the engine's structured signals (`name`, `kind`, `severity`,
+  `threat_class`, `value`, `label`, `source`), not free-text explanations.
+- `severity`, `own_signal`, and `fail_mode`: decision context, alongside the
+  existing action, assessment status, sources, and fleet boost.
+
+`verdicts: null` means there was no valid model assessment, including a refused,
+failed, incomplete, or prefilter-only event. It never means the model assigned
+zero risk. Inspect `assessment_status` and system/prefilter triggers to distinguish
+those paths. Engine triggers, thresholds, earlier events, and `fleet_boost`
+describe how a decision was reached; these records are not the model's reasoning
+trace and do not by themselves establish why a model assigned a particular score.
+
+For a false positive, compare that event's verdicts and triggers to the declared
+policy and earlier events before changing any thresholds. Attach the existing
+`report.json` with the feedback template after reviewing it for sensitive details;
+do not rerun merely to regenerate a missing report. Format-1 reports remain valid
+historical results, but their omitted verdicts/thinking settings cannot be
+reconstructed from the exported data. Keep originals unchanged and identify the
+format when comparing runs.
 
 ## Reading results
 
