@@ -11,9 +11,35 @@ This is an early open-source integration and evaluation project, not a productio
 security guarantee. Feedback on integration friction, false positives, missing
 coverage and bounded failure behavior is welcome.
 
+## Help shape the developer preview
+
+You do not need an invitation or collaborator access to try the public code.
+We are looking for developers to test it with their existing Python agents and
+tell us what is confusing, missing, too slow, or incorrectly flagged.
+
+1. **Start offline:** follow the no-key quickstart below. Report any installation
+   problem, including your OS, Python version, and checkout commit.
+2. **Try an integration or evaluation:** use the [Python integration guide](docs/INTEGRATION.md)
+   or the [12-case pilot](evals/pilot/README.md). Start with observe-only behavior
+   and synthetic data. Live assessments are optional and require your own
+   provider credentials or an operator-approved self-hosted endpoint.
+3. **Send actionable feedback:** open a [GitHub issue](https://github.com/IPNS-OPAD/ipns-sentinel/issues/new)
+   with the expected versus actual behavior and a minimal synthetic reproducer.
+   For evals, use the [report template](evals/pilot/REPORT_TEMPLATE.md) and attach
+   the existing `report.json` only after checking it for sensitive details.
+
+Especially useful: false alerts on authorized work, missed policy violations,
+multi-agent coordination controls, incomplete assessments, and per-request
+latency. Small reports and documentation fixes are welcome; you do not need to
+run the full suite or use a paid model to contribute.
+
+Do not post keys, production conversations, internal endpoint addresses or private
+audit evidence. Report vulnerabilities [privately](SECURITY.md), not in public issues.
+
 ## Try it without keys
 
-Use Python 3.12 or newer:
+Use Python 3.12 or newer on Linux or macOS. **Windows: use WSL/Ubuntu; native
+Windows is not currently supported** (the audit module uses Unix file locking).
 
 ```sh
 git clone https://github.com/IPNS-OPAD/ipns-sentinel.git
@@ -76,6 +102,21 @@ not a Sentinel monitor backend.
 - Missing reasoning is expected. Decisions depend on observable actions/context;
   hidden intent and autonomous covert coordination are not guaranteed detectable.
 
+### Early feedback, not a benchmark
+
+One tester's single self-hosted run of the 12-case development pilot completed
+all 44 assessments and detected 5/5 attack cases, but incorrectly blocked 1/7
+benign cases (authorized multi-agent coordination). Mean latency was about 103
+seconds per assessment on that deployment. The run used JSON-object mode and a
+temporary thinking-mode override; it is not a benchmark of the current runner
+or a general claim about any model. Five attacks are far too few to establish
+reliable detection, and that latency is a significant limitation for inline use.
+
+These are open feedback areas, not resolved issues. The updated pilot records
+per-question verdicts and explicit thinking-mode requests to support diagnosis;
+it does not itself fix detector accuracy or serving latency. Please keep model,
+configuration, incomplete assessments and false alerts visible in comparisons.
+
 ## Test and contribute
 
 For a small hands-on evaluation, start with the [12-case developer pilot](evals/pilot/README.md):
@@ -107,6 +148,7 @@ correlation evaluations remain necessary.
 Use [GitHub issues](https://github.com/IPNS-OPAD/ipns-sentinel/issues) for sanitized
 bugs and feature requests; use [SECURITY.md](SECURITY.md) for vulnerabilities.
 Do not attach credentials, production conversations or raw private audit evidence.
+To invite another developer, use this [short preview announcement](docs/DEVELOPER-PREVIEW-ANNOUNCEMENT.md).
 
 ## License and name
 
