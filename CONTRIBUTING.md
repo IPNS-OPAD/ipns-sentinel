@@ -4,6 +4,30 @@ This is an experimental developer preview, not a certified security boundary.
 Start with the [integration guide](docs/INTEGRATION.md) and
 [data/credential notes](docs/BYOK.md). The offline demo needs no provider account.
 
+## Public development
+
+[IPNS-OPAD/ipns-sentinel](https://github.com/IPNS-OPAD/ipns-sentinel) is the public
+development home. Use its issues and pull requests for product work, documentation,
+and synthetic evaluations. Contributors do not need a private checkout, an
+invitation, or access to a maintainer's model account.
+
+- Read the [architecture](docs/ARCHITECTURE.md) for the execution and data boundaries.
+- Pick a [starter task](docs/ROADMAP.md#starter-tasks), or search existing
+  [issues](https://github.com/IPNS-OPAD/ipns-sentinel/issues) before proposing work.
+- For a larger change, describe the user-visible outcome and acceptance checks in
+  an issue first. For a small documentation fix, a pull request is welcome directly.
+- Work in a branch or fork and open a pull request against `main`. Explain what
+  changed, how it was checked, and what remains untested. Do not weaken a security
+  boundary or change evaluation labels just to make checks pass.
+- Maintainers review changes and check CI before merging. Public CI uses offline
+  fixtures, not contributor or maintainer provider keys. Live checks are separate,
+  explicit, operator-approved work, not a prerequisite for a documentation contribution.
+
+Useful design decisions and roadmap changes should be documented here alongside
+the code. Private operational records, credentials, customer data and raw provider
+logs do not belong in the public history. Report vulnerabilities through
+[SECURITY.md](SECURITY.md), not a public issue or pull request.
+
 ## Development
 
 Use Python 3.12+ and uv 0.11.17. From a checkout:

@@ -13,6 +13,12 @@ coverage and bounded failure behavior is welcome.
 
 ## Help shape the developer preview
 
+This repository is the public development home for IPNS Sentinel. Propose changes
+through public issues and pull requests; no invitation or private repository
+access is needed. Start with the [architecture guide](docs/ARCHITECTURE.md),
+[roadmap and starter tasks](docs/ROADMAP.md), and [contribution guide](CONTRIBUTING.md).
+Experimental status describes the maturity of the project, not an access restriction.
+
 You do not need an invitation or collaborator access to try the public code.
 We are looking for developers to test it with their existing Python agents and
 tell us what is confusing, missing, too slow, or incorrectly flagged.
